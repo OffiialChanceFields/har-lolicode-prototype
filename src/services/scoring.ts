@@ -1,7 +1,6 @@
 // src/services/scoring.ts
 
 import { AnalysisMode } from './AnalysisMode';
-import { EndpointClassifierImpl } from './EndpointClassifierImpl';
 import { HarEntry } from './types';
 import { EndpointClassifier, EndpointType } from '../core/EndpointClassifier';
 

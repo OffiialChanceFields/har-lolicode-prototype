@@ -1,7 +1,7 @@
 // src/core/StreamingHarParser.ts
 import { EventEmitter } from '../lib/event-emitter';
 import { CircularBuffer } from '../lib/CircularBuffer';
-import { HarEntry, Har } from '../services/types';
+import { HarEntry, Har, HarCookie } from '../services/types';
 import { ParameterExtractionService } from '../services/parameter/ParameterExtractionService';
 
 export interface ParserOptions {
@@ -573,7 +573,7 @@ export class StreamingHarParser extends EventEmitter {
       // Process request
       const request = this.processRequest(rawEntry.request as Record<string, unknown>);
       // Process response
-      const response = this.processResponse(rawResponse.response as Record<string, unknown>);
+      const response = this.processResponse(rawEntry.response as Record<string, unknown>);
       // Check if we should skip large responses
       if (
         this.options.skipLargeResponses &&

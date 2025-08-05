@@ -645,7 +645,7 @@ export class StreamingHarParser extends EventEmitter {
       }));
   }
 
-  private processCookies(rawCookies: Record<string, unknown>[]): { name: string, value: string, path?: string, domain?: string, expires?: string, httpOnly?: boolean, secure?: boolean, sameSite?: string }[] {
+  private processCookies(rawCookies: Record<string, unknown>[]): HarCookie[] {
     if (!Array.isArray(rawCookies)) return [];
     return rawCookies
       .filter((c) => c && typeof c === 'object' && c.name)
@@ -658,7 +658,7 @@ export class StreamingHarParser extends EventEmitter {
         httpOnly: Boolean(c.httpOnly),
         secure: Boolean(c.secure),
         sameSite: c.sameSite as string
-      }));
+      } as HarCookie));
   }
 
   private processPostData(rawPostData: Record<string, unknown>): HarEntry['request']['postData'] {

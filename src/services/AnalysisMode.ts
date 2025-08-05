@@ -3,9 +3,7 @@ import { HarRequest } from '../types';
 
 // Predefined configuration profiles
 export enum Predefined {
-  AUTOMATIC = 'automatic',
-  MANUAL = 'manual',
-  ASSISTED = 'assisted'
+  AUTOMATIC = 'automatic'
 }
 
 // Resource types for classification
@@ -142,44 +140,16 @@ export class AnalysisModeService {
       },
       tokenDetection: { scope: TokenDetectionScope.COMPREHENSIVE_SCAN }
     });
-
-    // Manual Configuration
-    this.configurations.set(Predefined.MANUAL, {
-      filtering: {
-          endpointPatterns: {
-              include: [], // User-defined
-              exclude: [], // User-defined
-              priorityPatterns: [] // User-defined
-          },
-          resourceTypeWeights: new Map(),
-          contextualRules: [],
-          behavioralPatterns: [],
-          scoreThresholds: { minimum: 0, optimal: 0, includeThreshold: 0 } // User-defined
-      },
-      tokenDetection: { scope: TokenDetectionScope.USER_CONFIGURED }
-    });
-
-    // Assisted Configuration
-    this.configurations.set(Predefined.ASSISTED, {
-      filtering: {
-          endpointPatterns: {
-              include: [/api/i, /auth/i],
-              exclude: [/\.css$/, /\.js$/, /\.svg$/, /\.png$/],
-              priorityPatterns: [
-                  { pattern: /login/i, weight: 10 },
-                  { pattern: /token/i, weight: 10 }
-              ]
-          },
-          resourceTypeWeights: new Map(),
-          contextualRules: [],
-          behavioralPatterns: [],
-          scoreThresholds: { minimum: 3, optimal: 15, includeThreshold: 7 }
-      },
-      tokenDetection: { scope: TokenDetectionScope.SESSION_MANAGEMENT_FOCUSED }
-    });
   }
 
   public static getConfiguration(mode: Predefined): AnalysisConfiguration | undefined {
     return this.configurations.get(mode);
   }
+
+  public static getDefaultConfiguration(): AnalysisConfiguration {
+    return this.configurations.get(Predefined.AUTOMATIC)!;
+  }
 }
+
+// FilteringCriteria type alias for compatibility elsewhere
+export type FilteringCriteria = FilteringConfig;

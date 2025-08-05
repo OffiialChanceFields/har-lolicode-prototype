@@ -102,6 +102,9 @@ export type FilteringCriteria = FilteringConfig;[];
   };
 }
 
+// Back-compat: some modules still reference the old name
+export type FilteringCriteria = FilteringConfig;
+
 // Token detection configuration
 export interface TokenDetectionConfig {
   scope: TokenDetectionScope;

@@ -2,6 +2,18 @@ import { MatchedPattern } from '../flow-analysis/types';
 import { AnalysisMode } from './AnalysisMode';
 
 // Basic HAR Interfaces
+
+// Root HAR object interface
+export interface Har {
+  log: {
+    version?: string;
+    creator?: unknown;
+    browser?: unknown;
+    pages?: unknown[];
+    entries: HarEntry[];
+  };
+}
+
 export interface HarHeader {
   name: string;
   value: string;

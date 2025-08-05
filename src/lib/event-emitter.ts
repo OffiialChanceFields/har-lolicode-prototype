@@ -1,28 +1,27 @@
 // src/lib/event-emitter.ts
-type Listener<T extends unknown[]> = (...args: T) => void;
 
-export class EventEmitter {
-  private events: Record<string, Listener<unknown[]>[]> = {};
+export class EventEmitter<Events extends Record<string, (...args: any[]) => void> = Record<string, (...args: any[]) => void>> {
+  private events: { [K in keyof Events]?: Events[K][] } = {} as any;
 
-  on<T extends unknown[]>(eventName: string, listener: Listener<T>): void {
+  on<K extends keyof Events>(eventName: K, listener: Events[K]): void {
     if (!this.events[eventName]) {
       this.events[eventName] = [];
     }
-    this.events[eventName].push(listener as Listener<unknown[]>);
+    this.events[eventName]!.push(listener);
   }
 
-  emit<T extends unknown[]>(eventName: string, ...args: T): void {
+  emit<K extends keyof Events>(eventName: K, ...args: Parameters<Events[K]>): void {
     const listeners = this.events[eventName];
     if (listeners) {
       listeners.forEach((listener) => listener(...args));
     }
   }
 
-  off<T extends unknown[]>(eventName: string, listenerToRemove: Listener<T>): void {
+  off<K extends keyof Events>(eventName: K, listenerToRemove: Events[K]): void {
     const listeners = this.events[eventName];
     if (listeners) {
       this.events[eventName] = listeners.filter(
-        (listener) => listener !== (listenerToRemove as Listener<unknown[]>)
+        (listener) => listener !== listenerToRemove
       );
     }
   }

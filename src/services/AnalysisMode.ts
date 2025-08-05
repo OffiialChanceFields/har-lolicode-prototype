@@ -83,13 +83,12 @@ export interface ContextualFilterRule {
 }
 // Filtering configuration
 export interface FilteringConfig {
-  endpointPatterns: {
-    include: RegExp[];
-    exclude: RegExp[];
-    priorityPatterns: {
-      pattern: RegExp;
-      weight: number;
-    }[];
+  // Various filtering parameters
+  [key: string]: unknown;
+}
+
+// Back-compat alias for modules still referencing the old name
+export type FilteringCriteria = FilteringConfig;[];
   };
   resourceTypeWeights: Map<ResourceType, number>;
   contextualRules: ContextualFilterRule[];

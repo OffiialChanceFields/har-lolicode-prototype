@@ -83,12 +83,13 @@ export interface ContextualFilterRule {
 }
 // Filtering configuration
 export interface FilteringConfig {
-  // Various filtering parameters
-  [key: string]: unknown;
-}
-
-// Back-compat alias for modules still referencing the old name
-export type FilteringCriteria = FilteringConfig;[];
+  endpointPatterns: {
+    include: RegExp[];
+    exclude: RegExp[];
+    priorityPatterns: {
+      pattern: RegExp;
+      weight: number;
+    }[];
   };
   resourceTypeWeights: Map<ResourceType, number>;
   contextualRules: ContextualFilterRule[];
@@ -100,7 +101,7 @@ export type FilteringCriteria = FilteringConfig;[];
   };
 }
 
-// Back-compat: some modules still reference the old name
+// Back-compat: alias for modules still referencing the old name
 export type FilteringCriteria = FilteringConfig;
 
 // Token detection configuration

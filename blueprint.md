@@ -28,6 +28,11 @@ The Intelligent HAR Analyzer is a web-based tool designed to automate the proces
 
 ## Implemented Changes
 
+- **Enhanced Multi-Stage Authentication Flow Detection:** Refactored the `BehavioralPatternMatcher` to support more complex and flexible authentication flows.
+    - Introduced an `isOptional` flag for pattern steps, allowing the definition of non-mandatory requests within a flow (e.g., an optional `/userinfo` call in OIDC).
+    - Updated the pattern matching algorithm to correctly process patterns with optional steps, significantly improving the accuracy of multi-stage flow detection.
+- **Added OpenID Connect (OIDC) Support:** Implemented a new, detailed pattern for detecting the OIDC Authorization Code Grant flow. The system can now distinguish between standard OAuth 2.0 and OIDC, and correctly identify OIDC-specific elements like the `id_token`.
+- **Fixed URL Pattern Matching Bug:** Corrected a bug in the `BehavioralPatternMatcher` that prevented it from correctly matching patterns with multiple URL regexes. This fix improves the reliability of all existing and new authentication patterns.
 - **Refactored Filtering Logic:** Replaced the previous boolean-based filtering with a more sophisticated, multi-dimensional scoring system. This allows for a more nuanced and accurate identification of critical endpoints.
 - **Introduced EndpointScoringService:** Created a dedicated service to handle the scoring of HAR entries. This service incapsulates the scoring logic and makes it easier to maintain and extend.
 - **Updated AsyncHarProcessor:** Refactored the main processing unit to use the new `EndpointScoringService` and to streamline the analysis workflow. The `AsyncHarProcessor` now includes full implementations for:

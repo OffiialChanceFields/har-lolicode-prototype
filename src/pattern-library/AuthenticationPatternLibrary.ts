@@ -61,6 +61,7 @@ interface RequestPattern {
     minDelaySeconds?: number;
     maxDelaySeconds?: number;
   };
+  isOptional?: boolean;
 }
 
 export class AuthenticationPatternLibrary {
@@ -113,6 +114,68 @@ export class AuthenticationPatternLibrary {
       ]
     });
     
+    // OpenID Connect (OIDC) Authorization Code Flow
+    this.patterns.set(AuthenticationPatternId.OPENID_CONNECT, {
+      id: AuthenticationPatternId.OPENID_CONNECT,
+      name: 'OpenID Connect (OIDC) Authorization Code Flow',
+      confidence: 0.96, // Higher than OAuth2 due to specificity
+      pattern: [
+        {
+          urlPattern: [
+            /\/oauth\/authorize.*scope=.*openid/,
+            /\/connect\/authorize.*scope=.*openid/,
+            /\/as\/authorize.*scope=.*openid/,
+            /login.*scope=.*openid/
+          ],
+          methodPattern: ['GET', 'POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING
+        },
+        {
+          urlPattern: [/\/callback/, /\/redirect/, /\/oauth2\/callback/],
+          methodPattern: ['GET', 'POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING
+        },
+        {
+          urlPattern: [/\/oauth\/token/, /\/token/, /\/connect\/token/],
+          methodPattern: ['POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING
+        },
+        {
+          urlPattern: [/\/userinfo/, /\/connect\/userinfo/, /\/me/],
+          methodPattern: ['GET', 'POST'],
+          headerPattern: {
+            'authorization': /^Bearer\s+[A-Za-z0-9._-]+/
+          },
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING,
+          isOptional: true
+        }
+      ],
+      extract: (matches) => {
+        const tokenMatch = matches.find(m => m.request.url.includes('/token'));
+        return {
+          authorizationEndpoint: matches[0]?.request.url,
+          callbackEndpoint: matches[1]?.request.url,
+          tokenEndpoint: tokenMatch?.request.url,
+          userInfoEndpoint: matches.find(m => m.request.url.includes('/userinfo'))?.request.url || 'N/A',
+          details: {
+            state: this.extractOAuthState(matches),
+            id_token: tokenMatch ? this.extractJwtToken(tokenMatch, 'id_token') : null
+          }
+        };
+      },
+      tokenPatterns: [
+        { name: 'state', pattern: /state=([^&]+)/, location: 'url' },
+        { name: 'code', pattern: /code=([^&]+)/, location: 'url' },
+        { name: 'access_token', pattern: /"access_token":"([^"]+)"/, location: 'response' },
+        { name: 'id_token', pattern: /"id_token":"([^"]+)"/, location: 'response' },
+        { name: 'refresh_token', pattern: /"refresh_token":"([^"]+)"/, location: 'response' }
+      ]
+    });
+
     // Form-based Authentication with CSRF
     this.patterns.set(AuthenticationPatternId.FORM_AUTH_CSRF, {
       id: AuthenticationPatternId.FORM_AUTH_CSRF,

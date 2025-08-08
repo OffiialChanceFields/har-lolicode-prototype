@@ -64,27 +64,21 @@ export class BehavioralPatternMatcher {
   ): HarEntry[][] {
     const matches: HarEntry[][] = [];
 
-    // Try to find sequences that match the pattern
     for (let i = 0; i < requests.length; i++) {
       const sequence: HarEntry[] = [];
       let patternIndex = 0;
+      let requestIndex = i;
 
-      for (
-        let j = i;
-        j < requests.length && patternIndex < pattern.pattern.length;
-        j++
-      ) {
-        if (
-          this.entryMatchesPattern(requests[j], pattern.pattern[patternIndex])
-        ) {
-          sequence.push(requests[j]);
-          patternIndex++;
+      while (patternIndex < pattern.pattern.length && requestIndex < requests.length) {
+        const patternStep = pattern.pattern[patternIndex] as PatternStep;
+        const request = requests[requestIndex];
+
+        if (this.entryMatchesPattern(request, patternStep)) {
+          sequence.push(request);
 
           // Check timing constraints
-          if (
-            (pattern.pattern[patternIndex - 1] as PatternStep).timing &&
-            sequence.length > 1
-          ) {
+          const timing = (pattern.pattern[patternIndex] as PatternStep).timing;
+          if (timing && sequence.length > 1) {
             const prevTime = new Date(
               sequence[sequence.length - 2].startedDateTime
             ).getTime();
@@ -93,26 +87,40 @@ export class BehavioralPatternMatcher {
             ).getTime();
             const delaySeconds = (currTime - prevTime) / 1000;
 
-            const timing = (pattern.pattern[patternIndex - 1] as PatternStep).timing;
             if (
-              timing.minDelaySeconds &&
-              delaySeconds < timing.minDelaySeconds
+              (timing.minDelaySeconds && delaySeconds < timing.minDelaySeconds) ||
+              (timing.maxDelaySeconds && delaySeconds > timing.maxDelaySeconds)
             ) {
-              // Timing constraint violated
-              break;
-            }
-            if (
-              timing.maxDelaySeconds &&
-              delaySeconds > timing.maxDelaySeconds
-            ) {
-              // Timing constraint violated
+              // Timing constraint violated, break the sequence match
               break;
             }
           }
+
+          // It's a match, advance both
+          patternIndex++;
+          requestIndex++;
+        } else if (patternStep.isOptional) {
+          // Not a match, but the pattern step is optional.
+          // Advance the pattern index and try to match the same request against the next step.
+          patternIndex++;
+        } else {
+          // Not a match and the step is mandatory. This sequence has failed.
+          break; // Exit the while loop
         }
       }
 
-      if (sequence.length === pattern.pattern.length) {
+      // After the loop, check if we found a valid match.
+      // A valid match means we have processed all pattern steps.
+      // If the last steps are optional and unmatched, we still need to increment patternIndex for them.
+      while (
+        patternIndex < pattern.pattern.length &&
+        (pattern.pattern[patternIndex] as PatternStep).isOptional
+      ) {
+        patternIndex++;
+      }
+
+      if (patternIndex === pattern.pattern.length) {
+        // We have successfully matched all mandatory steps.
         matches.push(sequence);
       }
     }
@@ -121,8 +129,13 @@ export class BehavioralPatternMatcher {
   }
 
   private entryMatchesPattern(entry: HarEntry, pattern: PatternStep): boolean {
-    if (pattern.urlPattern && !pattern.urlPattern.test(entry.request.url)) {
-      return false;
+    if (pattern.urlPattern) {
+      const patterns = Array.isArray(pattern.urlPattern)
+        ? pattern.urlPattern
+        : [pattern.urlPattern];
+      if (!patterns.some((p) => p.test(entry.request.url))) {
+        return false;
+      }
     }
 
     if (

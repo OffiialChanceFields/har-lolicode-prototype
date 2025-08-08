@@ -1,4 +1,5 @@
 import { HarEntry } from 'har-format';
+import { SessionAnalysisResult } from '../session/types';
 import {
   CorrelationMatrix,
   CorrelationScore,
@@ -7,13 +8,14 @@ import {
 } from './types';
 
 class RequestCorrelationEngine {
-  public buildCorrelationMatrix(requests: HarEntry[]): CorrelationMatrix {
+  public buildCorrelationMatrix(requests: HarEntry[], sessionAnalysis: SessionAnalysisResult): CorrelationMatrix {
     const matrix = new CorrelationMatrix(requests.length);
     for (let i = 0; i < requests.length; i++) {
       for (let j = i + 1; j < requests.length; j++) {
         const correlation = this.calculateRequestCorrelation(
           requests[i],
-          requests[j]
+          requests[j],
+          sessionAnalysis
         );
         matrix.set(i, j, correlation);
       }
@@ -23,11 +25,12 @@ class RequestCorrelationEngine {
 
   private calculateRequestCorrelation(
     req1: HarEntry,
-    req2: HarEntry
+    req2: HarEntry,
+    sessionAnalysis: SessionAnalysisResult
   ): CorrelationScore {
     const factors = {
       referer: this.analyzeRefererRelationship(req1, req2),
-      cookie: this.analyzeCookieDependency(req1, req2),
+      cookie: this.analyzeCookieDependency(req1, req2, sessionAnalysis),
       token: this.analyzeTokenDependency(req1, req2),
       temporal: this.analyzeTemporalProximity(req1, req2),
       url: this.analyzeUrlPathSimilarity(req1, req2)
@@ -45,7 +48,26 @@ class RequestCorrelationEngine {
     return referer && referer.value === req1.request.url ? 1 : 0;
   }
 
-  private analyzeCookieDependency(req1: HarEntry, req2: HarEntry): number {
+  private analyzeCookieDependency(
+    req1: HarEntry,
+    req2: HarEntry,
+    sessionAnalysis: SessionAnalysisResult
+  ): number {
+    if (!sessionAnalysis) {
+      return 0;
+    }
+
+    for (const session of sessionAnalysis.sessions) {
+      for (const dep of session.dependencies) {
+        if (
+          dep.setter.startedDateTime === req1.startedDateTime &&
+          dep.getter.startedDateTime === req2.startedDateTime
+        ) {
+          return 1; // Found a direct dependency
+        }
+      }
+    }
+
     return 0;
   }
 
@@ -78,10 +100,51 @@ class RequestCorrelationEngine {
 }
 
 class DependencyMapper {
+  private readonly THRESHOLD = 0.5;
+
   public extractDependencyChains(
-    matrix: CorrelationMatrix
+    matrix: CorrelationMatrix,
+    requests: HarEntry[]
   ): DependencyChain[] {
-    return [];
+    const adj = this.buildAdjacencyList(matrix, requests);
+    const chains: DependencyChain[] = [];
+    for (let i = 0; i < requests.length; i++) {
+      this.dfs(i, adj, [requests[i]], chains, requests);
+    }
+    return chains;
+  }
+
+  private buildAdjacencyList(
+    matrix: CorrelationMatrix,
+    requests: HarEntry[]
+  ): number[][] {
+    const adj: number[][] = Array(requests.length).fill(0).map(() => []);
+    for (let i = 0; i < requests.length; i++) {
+      for (let j = i + 1; j < requests.length; j++) {
+        if (matrix.get(i, j).score > this.THRESHOLD) {
+          adj[i].push(j);
+        }
+      }
+    }
+    return adj;
+  }
+
+  private dfs(
+    u: number,
+    adj: number[][],
+    path: HarEntry[],
+    chains: DependencyChain[],
+    requests: HarEntry[]
+  ) {
+    if (adj[u].length === 0) {
+      chains.push([...path]);
+      return;
+    }
+    for (const v of adj[u]) {
+      path.push(requests[v]);
+      this.dfs(v, adj, path, chains, requests);
+      path.pop();
+    }
   }
 }
 
@@ -94,11 +157,11 @@ export class RequestDependencyAnalyzer {
     this.dependencyMapper = new DependencyMapper();
   }
 
-  public analyzeDependencies(requests: HarEntry[]): DependencyAnalysisResult {
+  public analyzeDependencies(requests: HarEntry[], sessionAnalysis: SessionAnalysisResult): DependencyAnalysisResult {
     const correlationMatrix =
-      this.correlationEngine.buildCorrelationMatrix(requests);
+      this.correlationEngine.buildCorrelationMatrix(requests, sessionAnalysis);
     const dependencyChains =
-      this.dependencyMapper.extractDependencyChains(correlationMatrix);
+      this.dependencyMapper.extractDependencyChains(correlationMatrix, requests);
     const criticalPath = this.identifyCriticalPath(dependencyChains);
     const redundantRequests = this.identifyRedundantRequests(
       requests,

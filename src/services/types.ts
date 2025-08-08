@@ -1,4 +1,6 @@
 import { MatchedPattern } from '../flow-analysis/types';
+import { SessionAnalysisResult } from './session/types';
+import { SequenceRules } from './sequencing/types';
 import { AnalysisMode } from './AnalysisMode';
 
 // Basic HAR Interfaces
@@ -151,4 +153,6 @@ export interface HarAnalysisResult {
   detectedTokens?: Map<string, DetectedToken[]>;
   behavioralFlows?: MatchedPattern[];
   warnings?: string[];
+  sessionAnalysis?: SessionAnalysisResult;
+  sequenceRules?: SequenceRules;
 }

@@ -7,6 +7,7 @@ import {
 } from './types';
 
 export enum TokenClassification {
+  SMART = 'smart',
   CSRF_TOKEN = 'csrf_token',
   SESSION_TOKEN = 'session_token',
   JWT_ACCESS_TOKEN = 'jwt_access_token',

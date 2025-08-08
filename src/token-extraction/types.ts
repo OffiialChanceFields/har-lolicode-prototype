@@ -32,3 +32,28 @@ export interface TokenExtractionResult {
     crossReferences: Record<string, string[]>;
   };
 }
+
+// Types for SmartTokenDetector
+export type SemanticHarEntry = HarEntry;
+
+export interface TokenInstance {
+  name: string;
+  value: string;
+  type: TokenClassification;
+  location: TokenLocation;
+  confidence: number;
+  meta: {
+    extractionLayer: string;
+    [key: string]: unknown;
+  };
+  firstSeenIndex: number;
+  isGenerated?: boolean;
+  key?: string;
+}
+
+export interface TokenCandidate {
+  type: 'body';
+  location: string;
+  value: string;
+  key: string;
+}

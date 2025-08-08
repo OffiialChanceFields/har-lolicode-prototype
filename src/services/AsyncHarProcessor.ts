@@ -4,7 +4,7 @@ import {
   ParseStatistics
 } from '../core/StreamingHarParser';
 import { AnalysisMode } from './AnalysisMode';
-import { TokenDetectionService } from '../token-extraction/TokenDetectionService';
+import { SmartTokenDetector } from '../token-extraction/SmartTokenDetector';
 import { OB2SyntaxComplianceEngine } from '../syntax-compliance/OB2SyntaxComplianceEngine';
 import { FlowAnalysisEngine } from '../flow-analysis/FlowAnalysisEngine';
 import { AuthenticationPatternLibrary } from '../pattern-library/AuthenticationPatternLibrary';
@@ -12,8 +12,11 @@ import { EndpointClassifier } from '../core/EndpointClassifier';
 import { RequestDependencyAnalyzer } from './dependency/RequestDependencyAnalyzer';
 import { RequestOptimizationEngine } from './optimization/RequestOptimizationEngine';
 import { MFAFlowAnalyzer } from './mfa/MFAFlowAnalyzer';
+import { SessionManager } from './session/SessionManager';
+import { RequestSequencer } from './sequencing/RequestSequencer';
+import { SequenceRules } from './sequencing/types';
 
-import { HarEntry, HarAnalysisResult, DetectedToken } from './types';
+import { HarEntry, HarAnalysisResult, DetectedToken, TokenInstance } from './types';
 
 export class AsyncHarProcessor {
   public static async processHarFileStreaming(
@@ -75,11 +78,21 @@ export class AsyncHarProcessor {
       );
     }
 
-        // 2. Dependency Analysis
-    progressCallback?.(15, 'dependency-analysis');
+    // 2. Session Analysis
+    progressCallback?.(15, 'session-analysis');
+    const sessionManager = new SessionManager();
+    const sessionAnalysis = sessionManager.analyze(scoredEntries);
+
+    // 3. Dependency Analysis
+    progressCallback?.(20, 'dependency-analysis');
     const dependencyAnalyzer = new RequestDependencyAnalyzer();
     const dependencyAnalysis =
-      dependencyAnalyzer.analyzeDependencies(scoredEntries);
+      dependencyAnalyzer.analyzeDependencies(scoredEntries, sessionAnalysis);
+
+    // 4. Request Sequencing
+    progressCallback?.(30, 'request-sequencing');
+    const sequencer = new RequestSequencer();
+    const sequenceRules = sequencer.analyzeSequence(scoredEntries, dependencyAnalysis);
 
     console.log('--- Dependency Analysis Output (Critical Path) ---');
     console.log(JSON.stringify(dependencyAnalysis.criticalPath.map(e => ({url: e.request.url, method: e.request.method})), null, 2));
@@ -122,11 +135,8 @@ export class AsyncHarProcessor {
     // 6. Token Detection
     progressCallback?.(75, 'token-detection');
 
-    const tokenDetector = new TokenDetectionService();
-    const tokenExtractionResults = optimizedFlow.optimizedRequests.map((entry) => {
-      const responseBody = entry.response.content?.text || '';
-      return tokenDetector.detectTokensWithContext(entry, responseBody);
-    });
+    const tokenDetector = new SmartTokenDetector();
+    const detectedTokens = tokenDetector.detectTokens(optimizedFlow.optimizedRequests);
 
     // 7. Code Generation
     progressCallback?.(90, 'code-generation');
@@ -150,13 +160,16 @@ export class AsyncHarProcessor {
         detectedPatterns: flowContext.matchedPatterns.map(p => p.patternId),
       },
       loliCode: codeGenResult.loliCode,
-      detectedTokens: tokenExtractionResults.flatMap(r => r.tokens).reduce((m, t) => {
-        if (!m.has(t.name)) m.set(t.name, []);
-        m.get(t.name)!.push(t);
+      detectedTokens: detectedTokens.reduce((m, t: DetectedToken) => {
+        const key = t.name;
+        if (!m.has(key)) m.set(key, []);
+        m.get(key)!.push(t);
         return m;
       }, new Map<string, DetectedToken[]>()),
       behavioralFlows: flowContext.matchedPatterns,
       warnings: [], // Placeholder
+      sessionAnalysis,
+      sequenceRules,
     };
 
     progressCallback?.(100, 'complete');

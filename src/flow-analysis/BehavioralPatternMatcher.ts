@@ -33,11 +33,8 @@ export class BehavioralPatternMatcher {
 
   matchPatterns(requests: HarEntry[]): PatternMatch[] {
     const matches: PatternMatch[] = [];
-
-    // Get all patterns from the library
     const patterns = this.patternLibrary.getAllPatterns();
 
-    // For each pattern, try to find matching sequences
     for (const [patternId, pattern] of patterns) {
       const patternMatches = this.findPatternMatches(requests, pattern);
 
@@ -54,8 +51,70 @@ export class BehavioralPatternMatcher {
       }
     }
 
-    // Sort by confidence
-    return matches.sort((a, b) => b.confidence - a.confidence);
+    // Post-process to identify composite patterns like session elevation
+    const compositeMatches = this.findCompositePatterns(requests, matches);
+
+    // Combine and sort
+    const allMatches = [...matches, ...compositeMatches];
+    return allMatches.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  private findCompositePatterns(
+    requests: HarEntry[],
+    existingMatches: PatternMatch[]
+  ): PatternMatch[] {
+    const compositeMatches: PatternMatch[] = [];
+
+    // Example: Session Elevation
+    const sessionElevationPattern = this.patternLibrary.getPattern(
+      'session_elevation' as any
+    );
+    if (sessionElevationPattern) {
+      for (let i = 0; i < requests.length; i++) {
+        // Step 1: Denied request
+        if (
+          this.entryMatchesPattern(
+            requests[i],
+            sessionElevationPattern.pattern[0] as PatternStep
+          )
+        ) {
+          // Step 2: Look for a successful auth pattern match after the denied request
+          for (const match of existingMatches) {
+            if (match.steps[0].startedDateTime > requests[i].startedDateTime) {
+              // Step 3: Look for a successful request to the same resource
+              for (let j = i + 1; j < requests.length; j++) {
+                if (
+                  requests[j].request.url === requests[i].request.url &&
+                  this.entryMatchesPattern(
+                    requests[j],
+                    sessionElevationPattern.pattern[2] as PatternStep
+                  )
+                ) {
+                  const steps = [requests[i], ...match.steps, requests[j]];
+                  const confidence =
+                    this.calculateConfidence(
+                      steps,
+                      sessionElevationPattern
+                    ) * 0.9; // Adjust confidence for composite
+                  compositeMatches.push({
+                    patternId: 'session_elevation',
+                    confidence,
+                    steps,
+                    extractedData: {
+                      deniedRequest: requests[i],
+                      authFlow: match,
+                      successfulRequest: requests[j]
+                    }
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return compositeMatches;
   }
 
   private findPatternMatches(
@@ -168,6 +227,18 @@ export class BehavioralPatternMatcher {
   ): number {
     let confidence = pattern.confidence || 0.8;
 
+    // Favor more specific patterns
+    if (pattern.pattern.length > 1) {
+      confidence *= 1.1;
+    }
+    if (
+      pattern.id.includes('mfa') ||
+      pattern.id.includes('oauth') ||
+      pattern.id.includes('saml')
+    ) {
+      confidence *= 1.2;
+    }
+
     // Adjust based on timing consistency
     if (entries.length > 1) {
       const timings: number[] = [];
@@ -177,7 +248,6 @@ export class BehavioralPatternMatcher {
         timings.push(currTime - prevTime);
       }
 
-      // Check if timings are consistent
       const avgTiming =
         timings.reduce((a, b) => a + b, 0) / timings.length;
       const variance =
@@ -185,21 +255,21 @@ export class BehavioralPatternMatcher {
         timings.length;
       const stdDev = Math.sqrt(variance);
 
-      // Lower confidence if timings are inconsistent
       if (stdDev > avgTiming * 0.5) {
-        confidence *= 0.8;
+        confidence *= 0.9; // Less penalty
       }
     }
 
-    // Boost confidence if all expected tokens are present
-    const hasExpectedTokens = entries.some(
-      (e) => (e as HarEntry & { detectedTokens: DetectedToken[] }).detectedTokens && (e as HarEntry & { detectedTokens: DetectedToken[] }).detectedTokens.length > 0
+    // Boost confidence if tokens are detected
+    const hasDetectedTokens = entries.some(
+      (e) =>
+        (e as HarEntry & { detectedTokens: DetectedToken[] }).detectedTokens
+          ?.length > 0
     );
-
-    if (hasExpectedTokens) {
-      confidence = Math.min(1.0, confidence * 1.1);
+    if (hasDetectedTokens) {
+      confidence *= 1.15;
     }
 
-    return confidence;
+    return Math.min(1.0, confidence);
   }
 }

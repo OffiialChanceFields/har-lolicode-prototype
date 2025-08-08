@@ -2,49 +2,63 @@
 import { HarEntry, OB2BlockDefinition, DetectedToken } from '../services/types';
 import { PatternMatch } from '../flow-analysis/BehavioralPatternMatcher';
 import { BehavioralFlow } from '../flow-analysis/types';
+import { AdaptiveExtractor } from '../services/extraction/AdaptiveExtractor';
+import { ExtractionStrategy } from '../services/extraction/types';
 
 export class BlockOptimizer {
+  private readonly adaptiveExtractor: AdaptiveExtractor;
+
+  constructor() {
+    this.adaptiveExtractor = new AdaptiveExtractor();
+  }
+
   optimizeBlockSequence(
     requests: HarEntry[],
     patternMatches: BehavioralFlow[],
     templateType: string
-  ): OB2BlockDefinition[] {
+  ): { blocks: OB2BlockDefinition[], strategies: ExtractionStrategy[] } {
     const blocks: OB2BlockDefinition[] = [];
     
     // Determine the most relevant pattern
     const primaryPattern = patternMatches.length > 0 ? patternMatches[0] : null;
+    let generatedResult: { blocks: OB2BlockDefinition[], strategies: ExtractionStrategy[] };
     
     // Generate blocks based on template type
     switch (templateType) {
       case 'SINGLE_REQUEST_TEMPLATE':
         if (requests.length > 0) {
-          blocks.push(this.createHttpRequestBlock(requests[0]));
+            const singleBlock = this.createHttpRequestBlock(requests[0]);
+            generatedResult = { blocks: [singleBlock], strategies: [] };
+        } else {
+            generatedResult = { blocks: [], strategies: [] };
         }
         break;
         
       case 'AUTHENTICATION_FAILURE_TEMPLATE':
-        blocks.push(...this.createAuthFailureTemplate(requests));
+        generatedResult = { blocks: this.createAuthFailureTemplate(requests), strategies: [] };
         break;
         
       case 'AUTHENTICATION_SUCCESS_TEMPLATE':
-        blocks.push(...this.createAuthSuccessTemplate(requests, primaryPattern));
+        generatedResult = { blocks: this.createAuthSuccessTemplate(requests, primaryPattern), strategies: [] };
         break;
         
       case 'MULTI_STEP_FLOW_TEMPLATE':
-        blocks.push(...this.createMultiStepFlowTemplate(requests, patternMatches));
+        generatedResult = this.createMultiStepFlowTemplate(requests, patternMatches);
         break;
         
       case 'GENERIC_TEMPLATE':
       default:
-        blocks.push(...this.createGenericTemplate(requests));
+        generatedResult = { blocks: this.createGenericTemplate(requests), strategies: [] };
         break;
     }
     
+    const optimized = this.optimizeBlocks(generatedResult.blocks, generatedResult.strategies);
+
     // Optimize block sequence
-    return this.optimizeBlocks(blocks);
+    return { blocks: optimized, strategies: generatedResult.strategies };
   }
   
-  private optimizeBlocks(blocks: OB2BlockDefinition[]): OB2BlockDefinition[] {
+  optimizeBlocks(blocks: OB2BlockDefinition[], allStrategies: ExtractionStrategy[]): OB2BlockDefinition[] {
     // Remove duplicate blocks
     const uniqueBlocks = this.removeDuplicateBlocks(blocks);
     
@@ -189,13 +203,26 @@ export class BlockOptimizer {
     };
   }
   
-  private createParseBlock(token: DetectedToken): OB2BlockDefinition {
+  private createParseBlockFromStrategy(strategy: ExtractionStrategy): OB2BlockDefinition {
+    return {
+      blockType: 'Parse',
+      parameters: new Map([
+        ['variable', strategy.primary.variableName],
+        ['selector', strategy.primary.expression],
+        ['type', strategy.primary.type],
+        // Fallbacks can be handled by the code generator later
+      ]),
+    };
+  }
+
+  private createParseBlockFromToken(token: DetectedToken): OB2BlockDefinition {
     return {
       blockType: 'Parse',
       parameters: new Map([
         ['variable', token.name],
         ['selector', `input[name='${token.name}']`],
-        ['attribute', 'value']
+        ['attribute', 'value'],
+        ['type', 'CSS'],
       ]),
     };
   }
@@ -286,8 +313,9 @@ export class BlockOptimizer {
   private createMultiStepFlowTemplate(
     requests: HarEntry[],
     patternMatches: BehavioralFlow[]
-  ): OB2BlockDefinition[] {
+  ): { blocks: OB2BlockDefinition[], strategies: ExtractionStrategy[] } {
     const blocks: OB2BlockDefinition[] = [];
+    const strategies: ExtractionStrategy[] = [];
     
     // Initialize variables
     const allTokens = new Set<string>();
@@ -306,6 +334,15 @@ export class BlockOptimizer {
     patternMatches.forEach(flow => {
       flow.steps.forEach((step, index) => {
         blocks.push(this.createHttpRequestBlock(step));
+
+        // Adaptive extraction
+        if (step.response.content?.text) {
+          const newStrategies = this.adaptiveExtractor.createExtractors([step.response.content.text]);
+          strategies.push(...newStrategies);
+          for (const strategy of newStrategies) {
+            blocks.push(this.createParseBlockFromStrategy(strategy));
+          }
+        }
         
         // Add any extracted data as variables
         if (index === 0 && flow.extractedData) {
@@ -332,7 +369,7 @@ export class BlockOptimizer {
       blocks.push(this.createHttpRequestBlock(request));
     });
     
-    return blocks;
+    return { blocks, strategies };
   }
   
   private createGenericTemplate(requests: HarEntry[]): OB2BlockDefinition[] {

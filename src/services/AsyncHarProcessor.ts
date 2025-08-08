@@ -170,6 +170,7 @@ export class AsyncHarProcessor {
       warnings: [], // Placeholder
       sessionAnalysis,
       sequenceRules,
+      extractionStrategies: codeGenResult.extractionStrategies,
     };
 
     progressCallback?.(100, 'complete');

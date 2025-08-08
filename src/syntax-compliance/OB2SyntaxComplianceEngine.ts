@@ -34,27 +34,28 @@ export class OB2SyntaxComplianceEngine {
     }
     
     // Generate optimized block structure
-    const optimizedBlocks = this.blockOptimizer.optimizeBlockSequence(
+    const optimizationResult = this.blockOptimizer.optimizeBlockSequence(
       analysisResult.criticalPath, 
       analysisResult.matchedPatterns,
       templateType
     );
     
     // Manage variable lifecycle
-    const variableMapping = this.variableManager.createVariableLifecycleMap(optimizedBlocks);
+    const variableMapping = this.variableManager.createVariableLifecycleMap(optimizationResult.blocks);
     
     // Add error handling
     const enhancedBlocks = this.errorHandlingFramework.enhanceWithErrorHandling(
-      optimizedBlocks,
+      optimizationResult.blocks,
       analysisResult.matchedPatterns
     );
     
-    return this.synthesizeOB2Configuration(enhancedBlocks, variableMapping);
+    return this.synthesizeOB2Configuration(enhancedBlocks, variableMapping, optimizationResult.strategies);
   }
   
   private synthesizeOB2Configuration(
     blocks: OB2BlockDefinition[], 
-    variableMapping: Map<string, string>
+    variableMapping: Map<string, string>,
+    extractionStrategies: ExtractionStrategy[]
   ): OB2ConfigurationResult {
     const loliCode: string[] = [];
     
@@ -111,7 +112,8 @@ export class OB2SyntaxComplianceEngine {
     return {
       loliCode: loliCode.join('\n'),
       blocks,
-      variables: variableMapping
+      variables: variableMapping,
+      extractionStrategies,
     };
   }
   
@@ -203,12 +205,24 @@ export class OB2SyntaxComplianceEngine {
     // Add parse statement
     const variable = block.parameters.get('variable') || 'token';
     const selector = block.parameters.get('selector') || '';
-    const attribute = block.parameters.get('attribute') || '';
-    
-    if (attribute) {
-      lines.push(`PARSE "${this.escapeValue(variable)}" CSS "${this.escapeValue(selector)}" ATTRIBUTE "${this.escapeValue(attribute)}"`);
-    } else {
-      lines.push(`PARSE "${this.escapeValue(variable)}" CSS "${this.escapeValue(selector)}"`);
+    const type = block.parameters.get('type') || 'CSS';
+
+    switch (type) {
+      case 'JSONPath':
+        lines.push(`PARSE "${this.escapeValue(variable)}" JSON "${this.escapeValue(selector)}"`);
+        break;
+      case 'Regex':
+        lines.push(`PARSE "${this.escapeValue(variable)}" REGEX "${this.escapeValue(selector)}"`);
+        break;
+      case 'CSS':
+      default:
+        const attribute = block.parameters.get('attribute') || '';
+        if (attribute) {
+          lines.push(`PARSE "${this.escapeValue(variable)}" CSS "${this.escapeValue(selector)}" ATTRIBUTE "${this.escapeValue(attribute)}"`);
+        } else {
+          lines.push(`PARSE "${this.escapeValue(variable)}" CSS "${this.escapeValue(selector)}"`);
+        }
+        break;
     }
     
     return lines.join('\n');

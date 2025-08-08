@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { SessionAnalysisResult } from '@/services/session/types';
 import { DetectedToken } from '@/services/types';
 import { SequenceRules } from '@/services/sequencing/types';
+import { ExtractionStrategy } from '@/services/extraction/types';
 
 interface AnalysisDetails {
   requestsFound: number;
@@ -20,6 +21,7 @@ interface AnalysisDetails {
   sessionAnalysis?: SessionAnalysisResult;
   detectedTokens?: Map<string, DetectedToken[]>;
   sequenceRules?: SequenceRules;
+  extractionStrategies?: ExtractionStrategy[];
 }
 
 interface AnalysisResult {
@@ -100,6 +102,20 @@ export const CodeOutput: React.FC<CodeOutputProps> = ({ analysisResult, filename
                       {analysis.detectedTokens && Array.from(analysis.detectedTokens.values()).flat().map((token, i) => (
                         <li key={i} className="truncate">
                           <strong>{token.name}:</strong> {token.value.substring(0, 30)}... (Confidence: {token.confidence.toFixed(2)})
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+            </div>
+            <div className="col-span-2">
+                <Card>
+                  <CardHeader><CardTitle>Extraction Strategies</CardTitle></CardHeader>
+                  <CardContent className="text-sm overflow-auto max-h-40">
+                    <ul className="list-disc pl-5">
+                      {analysis.extractionStrategies && analysis.extractionStrategies.map((strategy, i) => (
+                        <li key={i} className="truncate">
+                          <strong>{strategy.primary.variableName}:</strong> {strategy.primary.type} - {strategy.primary.expression}
                         </li>
                       ))}
                     </ul>

@@ -12,6 +12,7 @@ import { AnalysisMode } from '@/services/AnalysisMode';
 import { SessionAnalysisResult } from '@/services/session/types';
 import { DetectedToken } from '@/services/types';
 import { SequenceRules } from '@/services/sequencing/types';
+import { ExtractionStrategy } from '@/services/extraction/types';
 import { AnalysisModeSelector } from '@/components/AnalysisModeSelector';
 import { toast } from "sonner";
 import { errorMapping } from '@/services/errorMapping';
@@ -30,6 +31,7 @@ interface ProcessingState {
       sessionAnalysis?: SessionAnalysisResult;
       detectedTokens?: Map<string, DetectedToken[]>;
       sequenceRules?: SequenceRules;
+      extractionStrategies?: ExtractionStrategy[];
     };
   } | null;
   filename: string;
@@ -69,7 +71,7 @@ const Index = () => {
         throw new Error(`Analysis mode ${selectedMode} not found`);
       }
       const result = await AsyncHarProcessor.processHarFileStreaming(content, config, progressCallback);
-      const { loliCode, metrics, detectedTokens, behavioralFlows, sessionAnalysis, sequenceRules } = result;
+      const { loliCode, metrics, detectedTokens, behavioralFlows, sessionAnalysis, sequenceRules, extractionStrategies } = result;
       const processedResult = {
         loliCode,
         analysis: {
@@ -80,6 +82,7 @@ const Index = () => {
           sessionAnalysis,
           detectedTokens,
           sequenceRules,
+          extractionStrategies,
         },
       };
       setProcessing(prev => ({ ...prev, result: processedResult, isProcessing: false, progress: 100, currentStep: PIPELINE_STEPS.length }));

@@ -1,6 +1,7 @@
 import { MatchedPattern } from '../flow-analysis/types';
 import { SessionAnalysisResult } from './session/types';
 import { SequenceRules } from './sequencing/types';
+import { ExtractionStrategy } from './extraction/types';
 import { AnalysisMode } from './AnalysisMode';
 
 // Basic HAR Interfaces
@@ -129,6 +130,7 @@ export interface OB2ConfigurationResult {
   loliCode: string;
   blocks: OB2BlockDefinition[];
   variables: Map<string, string>;
+  extractionStrategies?: ExtractionStrategy[];
 }
 
 // Analysis Result Types
@@ -155,4 +157,5 @@ export interface HarAnalysisResult {
   warnings?: string[];
   sessionAnalysis?: SessionAnalysisResult;
   sequenceRules?: SequenceRules;
+  extractionStrategies?: ExtractionStrategy[];
 }

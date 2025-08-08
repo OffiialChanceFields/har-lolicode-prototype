@@ -1,5 +1,6 @@
 // src/pattern-library/AuthenticationPatternLibrary.ts
 import { HarEntry } from '../types';
+import { XMLParser } from 'fast-xml-parser';
 
 /**
  * Enhanced pattern matching that handles more flexible authentication flows
@@ -22,7 +23,9 @@ export enum AuthenticationPatternId {
   SESSION_COOKIE_AUTH = 'session_cookie_auth',
   MFA_SMS = 'mfa_sms',
   MFA_TOTP = 'mfa_totp',
-  MFA_PUSH = 'mfa_push'
+  MFA_PUSH = 'mfa_push',
+  MFA_WEBAUTHN = 'mfa_webauthn',
+  SESSION_ELEVATION = 'session_elevation'
 }
 
 // Common patterns for authentication endpoints
@@ -269,17 +272,31 @@ export class AuthenticationPatternLibrary {
           timing: FLEXIBLE_TIMING
         }
       ],
-      extract: (matches) => ({
-        loginEndpoint: matches[0]?.request.url,
-        assertionConsumerService: matches[1]?.request.url,
-        samlResponse: this.extractSamlResponse(matches[1]),
-        details: {
-          requestBody: matches[1]?.request.postData?.text
-        }
-      }),
+      extract: (matches) => {
+        const samlData = this.extractSamlResponse(matches[1]);
+        return {
+          loginEndpoint: matches[0]?.request.url,
+          assertionConsumerService: matches[1]?.request.url,
+          samlResponse: samlData?.decoded,
+          samlAssertion: samlData?.parsed,
+          details: {
+            requestBody: matches[1]?.request.postData?.text,
+            isMfaRequired: this.isMfaRequired(matches[1]),
+            mfaDetails: this.extractMfaDetails(matches[1])
+          }
+        };
+      },
       tokenPatterns: [
-        { name: 'saml_response', pattern: /name="SAMLResponse"\s+value="([^"]+)"/, location: 'body' },
-        { name: 'relay_state', pattern: /name="RelayState"\s+value="([^"]+)"/, location: 'body' }
+        {
+          name: 'saml_response',
+          pattern: /name="SAMLResponse"\s+value="([^"]+)"/,
+          location: 'body'
+        },
+        {
+          name: 'relay_state',
+          pattern: /name="RelayState"\s+value="([^"]+)"/,
+          location: 'body'
+        }
       ]
     });
     
@@ -563,17 +580,64 @@ export class AuthenticationPatternLibrary {
     }
   }
   
-  private extractSamlResponse(entry: HarEntry): string | null {
+  private extractSamlResponse(
+    entry: HarEntry
+  ): { raw: string; decoded: string; parsed: any } | null {
     if (!entry.request.postData?.text) return null;
-    
+
     try {
       const formData = new URLSearchParams(entry.request.postData.text);
-      return formData.get('SAMLResponse') || null;
+      const samlResponse = formData.get('SAMLResponse');
+      if (!samlResponse) return null;
+
+      const decoded = atob(samlResponse);
+      const parser = new XMLParser();
+      const parsed = parser.parse(decoded);
+
+      return {
+        raw: samlResponse,
+        decoded,
+        parsed
+      };
     } catch (e) {
+      console.error('Failed to parse SAML response:', e);
       return null;
     }
   }
-  
+  private isMfaRequired(entry: HarEntry): boolean {
+    // Enhanced logic to detect MFA requirement from response headers or content
+    const mfaHeader = entry.response.headers.find(
+      (h) => h.name.toLowerCase() === 'x-mfa-required'
+    );
+    if (mfaHeader && mfaHeader.value === 'true') {
+      return true;
+    }
+
+    if (entry.response.content.text) {
+      const text = entry.response.content.text.toLowerCase();
+      return (
+        text.includes('multi-factor') ||
+        text.includes('2fa') ||
+        text.includes('verify your identity')
+      );
+    }
+
+    return false;
+  }
+  private extractMfaDetails(entry: HarEntry): Record<string, any> | null {
+    if (!this.isMfaRequired(entry)) return null;
+
+    // Extract details about the MFA challenge
+    // This could be from response body, headers, etc.
+    // Example:
+    const mfaToken = this.extractJwtToken(entry, 'mfa_token');
+    return {
+      mfaToken,
+      challengeType: entry.response.headers.find(
+        (h) => h.name.toLowerCase() === 'x-mfa-challenge'
+      )?.value
+    };
+  }
   private extractSessionId(entry: HarEntry): string | null {
     const cookieHeader = entry.request.headers.find(h => 
       h.name.toLowerCase() === 'cookie'

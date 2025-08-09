@@ -785,7 +785,7 @@ export class AuthenticationPatternLibrary {
         id: 'mfa_sequence_webauthn',
         name: 'MFA Sequence (WebAuthn)',
         sequence: [
-          AuthenticationPatternId.FORM_AUTH_CSRF,
+          AuthenticationPatternId.FORM_AUTH_CSRF,.
           AuthenticationPatternId.MFA_WEBAUTHN
         ],
         confidence: 0.98

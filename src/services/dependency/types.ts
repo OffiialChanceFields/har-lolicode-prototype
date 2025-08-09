@@ -1,4 +1,4 @@
-import { HarEntry } from 'har-format';
+import { Entry } from 'har-format';
 
 export interface CorrelationScore {
   score: number;
@@ -28,13 +28,17 @@ export class CorrelationMatrix {
   get(i: number, j: number): CorrelationScore {
     return this.matrix[i][j];
   }
+
+  getSize(): number {
+    return this.size;
+  }
 }
 
-export type DependencyChain = HarEntry[];
+export type DependencyChain = Entry[];
 
 export interface DependencyAnalysisResult {
   correlationMatrix: CorrelationMatrix;
   dependencyChains: DependencyChain[];
-  criticalPath: HarEntry[];
-  redundantRequests: HarEntry[];
+  criticalPath: Entry[];
+  redundantRequests: Entry[];
 }

@@ -1,6 +1,8 @@
 // src/error-handling/ErrorHandlingFramework.ts
 
 import { ErrorType } from './types';
+import { OB2BlockDefinition } from '../services/types';
+import { MatchedPattern } from '../flow-analysis/types';
 
 /**
  * A standardized error class for the application.
@@ -55,3 +57,51 @@ export const throwError = (type: ErrorType, details?: unknown): never => {
   const message = errorMessages[type] || 'An unexpected error occurred.';
   throw new AppError(type, message, details);
 };
+
+/**
+ * Framework for adding error handling to LoliCode blocks.
+ */
+export class ErrorHandlingFramework {
+  /**
+   * Enhances a sequence of blocks with error handling logic.
+   * @param blocks The sequence of blocks to enhance.
+   * @param patterns The matched patterns, which can inform the error handling strategy.
+   * @returns The enhanced sequence of blocks.
+   */
+  public enhanceWithErrorHandling(
+    blocks: OB2BlockDefinition[],
+    patterns: MatchedPattern[] // We are not using patterns for now, but it's here for future enhancements.
+  ): OB2BlockDefinition[] {
+    const enhancedBlocks: OB2BlockDefinition[] = [];
+
+    for (const block of blocks) {
+      if (block.blockType === 'HttpRequest' || block.blockType === 'Parse') {
+        const logBlock: OB2BlockDefinition = {
+          blockType: 'Log',
+          parameters: new Map([
+            ['message', `An error occurred in block of type ${block.blockType}. Check the response for details.`]
+          ]),
+        };
+
+        const catchBlock = {
+            condition: 'true', // Catch all errors
+            blocks: [logBlock]
+        };
+
+        const tryBlock: OB2BlockDefinition = {
+          blockType: 'Try',
+          parameters: new Map([
+            ['tryBlocks', JSON.stringify([block])],
+            ['catchBlocks', JSON.stringify([catchBlock])],
+            ['finallyBlocks', JSON.stringify([])],
+          ]),
+        };
+        enhancedBlocks.push(tryBlock);
+      } else {
+        enhancedBlocks.push(block);
+      }
+    }
+
+    return enhancedBlocks;
+  }
+}

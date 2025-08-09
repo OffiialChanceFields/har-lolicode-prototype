@@ -8,7 +8,7 @@ import { AsyncHarProcessor } from '@/services/AsyncHarProcessor';
 import { Button } from '@/components/ui/button';
 import { InfoModal } from '@/components/InfoModal';
 import { Link } from 'react-router-dom';
-import { AnalysisMode } from '@/services/AnalysisMode';
+import { AnalysisModeService } from '@/services/AnalysisMode';
 import { toast } from "sonner";
 import { errorMapping } from '@/services/errorMapping';
 
@@ -56,7 +56,7 @@ const Index = () => {
     };
 
     try {
-      const config = AnalysisMode.AnalysisModeService.getDefaultConfiguration();
+      const config = AnalysisModeService.getDefaultConfiguration();
       const result = await AsyncHarProcessor.processHarFileStreaming(content, config, progressCallback);
       const { loliCode, metrics, detectedTokens, behavioralFlows } = result;
       const processedResult = {

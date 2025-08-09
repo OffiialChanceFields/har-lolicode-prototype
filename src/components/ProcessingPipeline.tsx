@@ -1,7 +1,5 @@
-
 import React from 'react';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Loader, Circle } from 'lucide-react';
+import { Check, Loader, CircleDot } from 'lucide-react';
 
 interface Step {
   id: string;
@@ -15,36 +13,47 @@ interface ProcessingPipelineProps {
   progress: number;
 }
 
-const getStepIcon = (status: Step['status']) => {
-    switch (status) {
-      case 'complete':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'processing':
-        return <Loader className="h-5 w-5 text-primary animate-spin" />;
-      case 'pending':
-        return <Circle className="h-5 w-5 text-muted-foreground" />;
-    }
-  };
-
-export const ProcessingPipeline: React.FC<ProcessingPipelineProps> = ({ steps, currentStep, progress }) => {
-  return (
-    <div className="space-y-4">
-      {steps.map((step, index) => (
-        <div key={step.id} className="flex items-center space-x-3">
-          <div className="flex-shrink-0">{getStepIcon(step.status)}</div>
-          <div className="flex-grow">
-            <div className="flex items-center justify-between">
-                <p className={`font-medium ${step.status !== 'pending' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {step.title}
-                </p>
-                {step.status === 'complete' && <span className="text-xs text-green-500">100%</span>}
-            </div>
-            {step.status === 'processing' && (
-              <Progress value={progress} className="h-2 mt-1" />
-            )}
-          </div>
+const StepIcon: React.FC<{ status: Step['status'] }> = ({ status }) => {
+  switch (status) {
+    case 'complete':
+      return (
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+          <Check className="w-5 h-5 text-primary-foreground" />
         </div>
-      ))}
+      );
+    case 'processing':
+      return (
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center animate-pulse-glow">
+          <Loader className="w-5 h-5 text-primary-foreground animate-spin" />
+        </div>
+      );
+    case 'pending':
+      return (
+        <div className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center">
+          <CircleDot className="w-4 h-4 text-muted-foreground/50" />
+        </div>
+      );
+  }
+};
+
+export const ProcessingPipeline: React.FC<ProcessingPipelineProps> = ({ steps }) => {
+  return (
+    <div className="w-full px-4 sm:px-8">
+      <div className="flex items-start">
+        {steps.map((step, index) => (
+          <React.Fragment key={step.id}>
+            <div className="flex flex-col items-center">
+              <StepIcon status={step.status} />
+              <p className="text-xs text-center mt-2 w-20 break-words">
+                {step.title}
+              </p>
+            </div>
+            {index < steps.length - 1 && (
+                <div className={`flex-1 h-1 mt-3.5 transition-all duration-500 ease-in-out ${step.status === 'complete' ? 'bg-primary' : 'bg-border'}`} />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { HarEntry } from 'har-format';
+import { Entry } from 'har-format';
 import {
   BatchableGroup,
   CachingStrategy,
@@ -6,7 +6,7 @@ import {
 } from './types';
 
 class RedundancyAnalyzer {
-  removeRedundantRequests(requests: HarEntry[]): HarEntry[] {
+  removeRedundantRequests(requests: Entry[]): Entry[] {
     // In a real implementation, this would analyze the requests
     // and remove any that are redundant.
     return requests;
@@ -14,7 +14,7 @@ class RedundancyAnalyzer {
 }
 
 class BatchingOptimizer {
-  identifyBatchableRequests(requests: HarEntry[]): BatchableGroup[] {
+  identifyBatchableRequests(requests: Entry[]): BatchableGroup[] {
     // In a real implementation, this would identify requests
     // that can be batched together.
     return [];
@@ -22,7 +22,7 @@ class BatchingOptimizer {
 }
 
 class CachingAnalyzer {
-  analyzeCachingOpportunities(requests: HarEntry[]): CachingStrategy {
+  analyzeCachingOpportunities(requests: Entry[]): CachingStrategy {
     // In a real implementation, this would analyze the requests
     // to identify caching opportunities.
     return {
@@ -43,7 +43,7 @@ export class RequestOptimizationEngine {
     this.cachingAnalyzer = new CachingAnalyzer();
   }
 
-  public optimizeRequestFlow(requests: HarEntry[]): OptimizedRequestFlow {
+  public optimizeRequestFlow(requests: Entry[]): OptimizedRequestFlow {
     const dedupedRequests =
       this.redundancyAnalyzer.removeRedundantRequests(requests);
     const batchableGroups =
@@ -59,7 +59,7 @@ export class RequestOptimizationEngine {
   }
 
   private synthesizeOptimizedFlow(
-    dedupedRequests: HarEntry[],
+    dedupedRequests: Entry[],
     batchableGroups: BatchableGroup[],
     cachingStrategy: CachingStrategy
   ): OptimizedRequestFlow {

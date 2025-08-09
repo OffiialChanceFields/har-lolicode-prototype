@@ -1,4 +1,4 @@
-import { HarEntry } from 'har-format';
+import { Entry } from 'har-format';
 import { MFAAnalysisResult, MFAPattern, MFAType } from './types';
 
 export class MFAFlowAnalyzer {
@@ -18,7 +18,7 @@ export class MFAFlowAnalyzer {
     // Add other MFA patterns here
   }
 
-  public analyzeMFAFlow(requests: HarEntry[]): MFAAnalysisResult[] {
+  public analyzeMFAFlow(requests: Entry[]): MFAAnalysisResult[] {
     const detectedMFATypes = this.detectMFATypes(requests);
     return detectedMFATypes.map((mfaType) => {
       const pattern = this.mfaPatterns.get(mfaType);
@@ -32,7 +32,7 @@ export class MFAFlowAnalyzer {
     });
   }
 
-  private detectMFATypes(requests: HarEntry[]): MFAType[] {
+  private detectMFATypes(requests: Entry[]): MFAType[] {
     const detected: Set<MFAType> = new Set();
     for (const request of requests) {
       for (const [type, pattern] of this.mfaPatterns.entries()) {
@@ -46,7 +46,7 @@ export class MFAFlowAnalyzer {
 
   private generateMFAHandlingCode(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     switch (pattern.type) {
       case MFAType.TOTP:
@@ -64,35 +64,35 @@ export class MFAFlowAnalyzer {
 
   private generateTOTPHandling(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     return `// TOTP handling code for requests matching ${pattern.requestPattern}`;
   }
 
   private generateSMSHandling(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     return `// SMS handling code for requests matching ${pattern.requestPattern}`;
   }
 
   private generateEmailHandling(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     return `// Email handling code for requests matching ${pattern.requestPattern}`;
   }
 
   private generatePushNotificationHandling(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     return `// Push notification handling code for requests matching ${pattern.requestPattern}`;
   }
 
   private generateGenericMFAHandling(
     pattern: MFAPattern,
-    requests: HarEntry[]
+    requests: Entry[]
   ): string {
     return `// Generic MFA handling code for requests matching ${pattern.requestPattern}`;
   }

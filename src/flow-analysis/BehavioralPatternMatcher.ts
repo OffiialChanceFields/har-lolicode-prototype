@@ -64,24 +64,70 @@ export class BehavioralPatternMatcher {
     existingMatches: PatternMatch[]
   ): PatternMatch[] {
     const compositeMatches: PatternMatch[] = [];
+    const compositePatterns = this.patternLibrary.getCompositePatterns();
+    const sortedMatches = [...existingMatches].sort(
+      (a, b) =>
+        new Date(a.steps[0].startedDateTime).getTime() -
+        new Date(b.steps[0].startedDateTime).getTime()
+    );
 
-    // Example: Session Elevation
+    // MFA sequences
+    for (const compositePattern of compositePatterns) {
+      for (let i = 0; i < sortedMatches.length; i++) {
+        if (sortedMatches[i].patternId === compositePattern.sequence[0]) {
+          let sequenceFound = true;
+          const sequenceMatches = [sortedMatches[i]];
+          let lastMatchIndex = i;
+
+          for (let j = 1; j < compositePattern.sequence.length; j++) {
+            const nextPatternId = compositePattern.sequence[j];
+            const nextMatch = sortedMatches
+              .slice(lastMatchIndex + 1)
+              .find((match) => match.patternId === nextPatternId);
+
+            if (nextMatch) {
+              sequenceMatches.push(nextMatch);
+              lastMatchIndex = sortedMatches.indexOf(nextMatch);
+            } else {
+              sequenceFound = false;
+              break;
+            }
+          }
+
+          if (sequenceFound) {
+            const allSteps = sequenceMatches.flatMap((m) => m.steps);
+            const combinedExtractedData = sequenceMatches.reduce(
+              (acc, m) => ({ ...acc, ...m.extractedData }),
+              {}
+            );
+            compositeMatches.push({
+              patternId: compositePattern.id,
+              confidence: compositePattern.confidence,
+              steps: allSteps,
+              extractedData: {
+                ...combinedExtractedData,
+                sequence: sequenceMatches.map((m) => m.patternId)
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // Session Elevation
     const sessionElevationPattern = this.patternLibrary.getPattern(
       'session_elevation' as any
     );
     if (sessionElevationPattern) {
       for (let i = 0; i < requests.length; i++) {
-        // Step 1: Denied request
         if (
           this.entryMatchesPattern(
             requests[i],
             sessionElevationPattern.pattern[0] as PatternStep
           )
         ) {
-          // Step 2: Look for a successful auth pattern match after the denied request
           for (const match of existingMatches) {
             if (match.steps[0].startedDateTime > requests[i].startedDateTime) {
-              // Step 3: Look for a successful request to the same resource
               for (let j = i + 1; j < requests.length; j++) {
                 if (
                   requests[j].request.url === requests[i].request.url &&
@@ -95,7 +141,7 @@ export class BehavioralPatternMatcher {
                     this.calculateConfidence(
                       steps,
                       sessionElevationPattern
-                    ) * 0.9; // Adjust confidence for composite
+                    ) * 0.9;
                   compositeMatches.push({
                     patternId: 'session_elevation',
                     confidence,

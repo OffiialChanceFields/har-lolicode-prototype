@@ -8,7 +8,6 @@ import { AsyncHarProcessor } from '@/core/AsyncHarProcessor';
 import { Button } from '@/components/ui/button';
 import { InfoModal } from '@/components/InfoModal';
 import { Link } from 'react-router-dom';
-import { AnalysisModeSelector } from '@/components/AnalysisModeSelector';
 import { toast } from "sonner";
 import { AppError } from '@/error-handling';
 import { OB2ConfigurationResult } from '@/services/types';

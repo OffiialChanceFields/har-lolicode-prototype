@@ -38,9 +38,19 @@ export interface CompositeAuthenticationPattern {
 
 // Common patterns for authentication endpoints
 const AUTH_ENDPOINT_PATTERNS = [
-  /\/(login|signin|auth|authenticate|session|token|account|access)/i,
-  /login|auth|token/i,
-  /\/api\/v?\d*\/(auth|login|token)/i
+  // General keywords in path
+  /\/(login|signin|auth|authenticate|session|token|account|access|oauth|oauth2|sso|saml)/i,
+  // Keywords as the main part of the path
+  /login|auth|token|sso/i,
+  // API-specific paths, with optional versioning
+  /\/api\/v?\d*\/(auth|login|token|oauth|oauth2)/i,
+  // Identity server patterns
+  /identity\/connect/i,
+  // User-centric paths
+  /\/users\/(login|signin|auth|session)/i,
+  // End of URL patterns
+  /\.sso$/,
+  /\.auth$/,
 ];
 
 // Common patterns for response status codes

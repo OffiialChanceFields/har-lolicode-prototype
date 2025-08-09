@@ -1,4 +1,6 @@
+// src/lib/theme-provider.tsx
 import { createContext, useContext, useEffect, useState } from "react";
+import { useTheme } from "./use-theme";
 
 type Theme = "dark" | "light" | "system";
 
@@ -47,10 +49,10 @@ export function ThemeProvider({
   );
 }
 
-export const useTheme = () => {
+export const useThemeProvider = () => {
   const context = useContext(ThemeProviderContext);
   if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider");
+    throw new Error("useThemeProvider must be used within a ThemeProvider");
   }
   return context;
 };

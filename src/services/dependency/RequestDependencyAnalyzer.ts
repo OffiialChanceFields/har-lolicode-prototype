@@ -1,4 +1,4 @@
-import { Entry } from 'har-format';
+import { Entry as HarEntry } from 'har-format';
 import {
   CorrelationMatrix,
   CorrelationScore,
@@ -10,7 +10,7 @@ import {
  * Calculates correlation scores between pairs of HAR entries based on various factors.
  */
 class RequestCorrelationEngine {
-  public buildCorrelationMatrix(requests: Entry[]): CorrelationMatrix {
+  public buildCorrelationMatrix(requests: HarEntry[]): CorrelationMatrix {
     const matrix = new CorrelationMatrix(requests.length);
     for (let i = 0; i < requests.length; i++) {
       for (let j = i + 1; j < requests.length; j++) {
@@ -25,8 +25,8 @@ class RequestCorrelationEngine {
   }
 
   private calculateRequestCorrelation(
-    req1: Entry,
-    req2: Entry
+    req1: HarEntry,
+    req2: HarEntry
   ): CorrelationScore {
     const factors = {
       referer: this.analyzeRefererRelationship(req1, req2),
@@ -39,8 +39,8 @@ class RequestCorrelationEngine {
   }
 
   private analyzeRefererRelationship(
-    req1: Entry,
-    req2: Entry
+    req1: HarEntry,
+    req2: HarEntry
   ): number {
     const referer = req2.request.headers.find(
       (h) => h.name.toLowerCase() === 'referer'
@@ -48,21 +48,6 @@ class RequestCorrelationEngine {
     return referer && referer.value === req1.request.url ? 1 : 0;
   }
 
-<<<<<<< HEAD
-  private analyzeCookieDependency(req1: Entry, req2: Entry): number {
-    return 0;
-  }
-
-  private analyzeTokenDependency(req1: Entry, req2: Entry): number {
-    return 0;
-  }
-
-  private analyzeTemporalProximity(req1: Entry, req2: Entry): number {
-    return 0;
-  }
-
-  private analyzeUrlPathSimilarity(req1: Entry, req2: Entry): number {
-=======
   private analyzeCookieDependency(req1: HarEntry, req2: HarEntry): number {
     const setCookieHeaders = req1.response.headers.filter(
       (h) => h.name.toLowerCase() === 'set-cookie'
@@ -140,7 +125,6 @@ class RequestCorrelationEngine {
     } catch (e) {
       return 0;
     }
->>>>>>> dd39f50 (Removed AnalysisMode file as its not needed due to all the modes are now consolidated into one file.)
     return 0;
   }
 
@@ -166,23 +150,8 @@ class RequestCorrelationEngine {
  * Traverses the correlation matrix to identify chains of dependent requests.
  */
 class DependencyMapper {
-  private readonly SIMILARITY_THRESHOLD = 0.8;
-
   public extractDependencyChains(
     matrix: CorrelationMatrix,
-<<<<<<< HEAD
-    requests: Entry[]
-  ): DependencyChain[] {
-    const chains: DependencyChain[] = [];
-    const visited = new Array(matrix.getSize()).fill(false);
-
-    for (let i = 0; i < matrix.getSize(); i++) {
-      if (!visited[i]) {
-        const currentChain: Entry[] = [];
-        this.dfs(i, visited, requests, matrix, currentChain);
-        if (currentChain.length > 1) {
-          chains.push(currentChain);
-=======
     requests: HarEntry[]
   ): DependencyChain[] {
     const CORRELATION_THRESHOLD = 0.4; // A lower threshold to allow more potential links
@@ -195,35 +164,10 @@ class DependencyMapper {
         const score = matrix.get(i, j)?.score;
         if (score && score >= CORRELATION_THRESHOLD) {
           adj[i].push(j);
->>>>>>> dd39f50 (Removed AnalysisMode file as its not needed due to all the modes are now consolidated into one file.)
         }
       }
     }
 
-<<<<<<< HEAD
-    return chains;
-  }
-
-  private dfs(
-    u: number,
-    visited: boolean[],
-    requests: Entry[],
-    correlationMatrix: CorrelationMatrix,
-    currentChain: Entry[]
-  ) {
-    visited[u] = true;
-    currentChain.push(requests[u]);
-
-    for (let v = 0; v < correlationMatrix.getSize(); v++) {
-      if (
-        u !== v &&
-        !visited[v] &&
-        correlationMatrix.get(u, v)?.score > this.SIMILARITY_THRESHOLD
-      ) {
-        this.dfs(v, visited, requests, correlationMatrix, currentChain);
-      }
-    }
-=======
     const allPaths: number[][] = [];
     const path: number[] = [];
 
@@ -277,7 +221,6 @@ class DependencyMapper {
           length: p.length
         };
       });
->>>>>>> dd39f50 (Removed AnalysisMode file as its not needed due to all the modes are now consolidated into one file.)
   }
 }
 
@@ -293,14 +236,6 @@ export class RequestDependencyAnalyzer {
     this.dependencyMapper = new DependencyMapper();
   }
 
-<<<<<<< HEAD
-  public analyzeDependencies(requests: Entry[]): DependencyAnalysisResult {
-    const correlationMatrix =
-      this.correlationEngine.buildCorrelationMatrix(requests);
-    const dependencyChains =
-      this.dependencyMapper.extractDependencyChains(correlationMatrix, requests);
-    const criticalPath = this.identifyCriticalPath(dependencyChains);
-=======
   public analyzeDependencies(requests: HarEntry[]): DependencyAnalysisResult {
     if (requests.length === 0) {
         return {
@@ -318,7 +253,6 @@ export class RequestDependencyAnalyzer {
       requests
     );
     const criticalPath = this.identifyCriticalPath(dependencyChains, requests);
->>>>>>> dd39f50 (Removed AnalysisMode file as its not needed due to all the modes are now consolidated into one file.)
     const redundantRequests = this.identifyRedundantRequests(
       requests,
       criticalPath
@@ -332,36 +266,6 @@ export class RequestDependencyAnalyzer {
     };
   }
 
-<<<<<<< HEAD
-  private identifyCriticalPath(chains: DependencyChain[]): Entry[] {
-    if (chains.length === 0) {
-      return [];
-    }
-
-    let criticalPath: Entry[] = [];
-    let maxTotalTime = 0;
-
-    for (const chain of chains) {
-      const totalTime = this.calculateTotalLength(chain);
-      if (totalTime > maxTotalTime) {
-        maxTotalTime = totalTime;
-        criticalPath = chain;
-      }
-    }
-
-    return criticalPath;
-  }
-
-  private calculateTotalLength(chain: DependencyChain): number {
-    return chain.reduce((total, req) => total + req.time, 0);
-  }
-
-  private identifyRedundantRequests(
-    allRequests: Entry[],
-    criticalPath: Entry[]
-  ): Entry[] {
-    const criticalPathUrls = new Set(criticalPath.map((req) => req.request.url));
-=======
   private identifyCriticalPath(
     chains: DependencyChain[],
     requests: HarEntry[]
@@ -388,7 +292,6 @@ export class RequestDependencyAnalyzer {
     const criticalPathUrls = new Set(
       criticalPath.map((req) => req.request.url)
     );
->>>>>>> dd39f50 (Removed AnalysisMode file as its not needed due to all the modes are now consolidated into one file.)
     return allRequests.filter(
       (req) => !criticalPathUrls.has(req.request.url)
     );

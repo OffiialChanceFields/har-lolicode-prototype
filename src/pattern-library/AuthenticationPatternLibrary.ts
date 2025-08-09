@@ -681,7 +681,7 @@ export class AuthenticationPatternLibrary {
   
   private extractSamlResponse(
     entry: HarEntry
-  ): { raw: string; decoded: string; parsed: any } | null {
+  ): { raw: string; decoded: string; parsed: Record<string, unknown> } | null {
     if (!entry.request.postData?.text) return null;
 
     try {
@@ -723,7 +723,7 @@ export class AuthenticationPatternLibrary {
 
     return false;
   }
-  private extractMfaDetails(entry: HarEntry): Record<string, any> | null {
+  private extractMfaDetails(entry: HarEntry): Record<string, unknown> | null {
     if (!this.isMfaRequired(entry)) return null;
 
     // Extract details about the MFA challenge
@@ -750,7 +750,7 @@ export class AuthenticationPatternLibrary {
 
   private extractWebAuthnCredential(
     entry: HarEntry
-  ): Record<string, any> | null {
+  ): Record<string, unknown> | null {
     if (!entry.request.postData?.text) return null;
 
     try {
@@ -785,7 +785,7 @@ export class AuthenticationPatternLibrary {
         id: 'mfa_sequence_webauthn',
         name: 'MFA Sequence (WebAuthn)',
         sequence: [
-          AuthenticationPatternId.FORM_AUTH_CSRF,.
+          AuthenticationPatternId.FORM_AUTH_CSRF,
           AuthenticationPatternId.MFA_WEBAUTHN
         ],
         confidence: 0.98

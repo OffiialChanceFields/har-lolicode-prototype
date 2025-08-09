@@ -2,7 +2,8 @@
 import { HarEntry, DetectedToken } from '../services/types';
 import {
   AuthenticationPatternLibrary,
-  AuthenticationPattern
+  AuthenticationPattern,
+  AuthenticationPatternId,
 } from '../pattern-library/AuthenticationPatternLibrary';
 
 export interface PatternMatch {
@@ -116,7 +117,7 @@ export class BehavioralPatternMatcher {
 
     // Session Elevation
     const sessionElevationPattern = this.patternLibrary.getPattern(
-      'session_elevation' as any
+      AuthenticationPatternId.SESSION_ELEVATION
     );
     if (sessionElevationPattern) {
       for (let i = 0; i < requests.length; i++) {

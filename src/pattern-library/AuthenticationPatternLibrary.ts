@@ -38,9 +38,19 @@ export interface CompositeAuthenticationPattern {
 
 // Common patterns for authentication endpoints
 const AUTH_ENDPOINT_PATTERNS = [
-  /\/(login|signin|auth|authenticate|session|token|account|access)/i,
-  /login|auth|token/i,
-  /\/api\/v?\d*\/(auth|login|token)/i
+  // General keywords in path
+  /\/(login|signin|auth|authenticate|session|token|account|access|oauth|oauth2|sso|saml)/i,
+  // Keywords as the main part of the path
+  /login|auth|token|sso/i,
+  // API-specific paths, with optional versioning
+  /\/api\/v?\d*\/(auth|login|token|oauth|oauth2)/i,
+  // Identity server patterns
+  /identity\/connect/i,
+  // User-centric paths
+  /\/users\/(login|signin|auth|session)/i,
+  // End of URL patterns
+  /\.sso$/,
+  /\.auth$/,
 ];
 
 // Common patterns for response status codes
@@ -551,8 +561,11 @@ export class AuthenticationPatternLibrary {
           urlPattern: [/.*/]
         },
         {
-          // Step 2: Re-authentication (placeholder, handled by composite logic)
-          // This step is intentionally left loose, as it will be filled by another auth pattern.
+          // Step 2: Re-authentication (e.g., password re-entry)
+          urlPattern: AUTH_ENDPOINT_PATTERNS,
+          methodPattern: ['POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING
         },
         {
           // Step 3: Access Granted

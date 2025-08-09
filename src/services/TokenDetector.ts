@@ -457,19 +457,13 @@ export class ProductionTokenDetector {
   private validateAndRankTokens(
       tokens: DetectedToken[],
       context: DetectionContext
-  ): Array<{
-    name: string;
-    value: string;
-    sourceResponse: string;
-    extractionMethod: ExtractionMethod;
-    confidence: number;
-  }> {
-      return tokens.map(token => ({
-          name: token.name,
-          value: token.value,
-          sourceResponse: context.sourceHTML,
-          extractionMethod: token.extractionMethod,
-          confidence: token.confidence,
-      })).sort((a, b) => b.confidence - a.confidence);
+  ): DetectedToken[] {
+      // Add sourceResponse to metadata for context
+      const rankedTokens = tokens.map(token => {
+        (token.metadata as any).sourceResponse = context.sourceHTML;
+        return token;
+      });
+
+      return rankedTokens.sort((a, b) => b.confidence - a.confidence);
   }
 }

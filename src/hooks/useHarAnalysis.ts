@@ -1,13 +1,14 @@
 // src/hooks/useHarAnalysis.ts
 
 import { useState } from 'react';
-import { Har } from '../types';
 import { AsyncHarProcessor } from '../core/AsyncHarProcessor';
 import { AppError } from '../error-handling/ErrorHandlingFramework';
+import { OB2ConfigurationResult } from '../services/types';
 
 // Defines the state of the HAR analysis process
 export interface HarAnalysisState {
-  har: Har | null;
+  loliCode: string | null;
+  analysisResult: OB2ConfigurationResult | null;
   isLoading: boolean;
   error: AppError | null;
   progress: number;
@@ -22,7 +23,8 @@ export interface HarAnalysisState {
  */
 export const useHarAnalysis = (): [HarAnalysisState, (file: File) => void] => {
   const [analysisState, setAnalysisState] = useState<HarAnalysisState>({
-    har: null,
+    loliCode: null,
+    analysisResult: null,
     isLoading: false,
     error: null,
     progress: 0,
@@ -35,7 +37,8 @@ export const useHarAnalysis = (): [HarAnalysisState, (file: File) => void] => {
    */
   const analyzeHar = (file: File) => {
     setAnalysisState({
-      har: null,
+      loliCode: null,
+      analysisResult: null,
       isLoading: true,
       error: null,
       progress: 0,
@@ -54,7 +57,8 @@ export const useHarAnalysis = (): [HarAnalysisState, (file: File) => void] => {
 
     harProcessor.on('onError', (error) => {
       setAnalysisState({
-        har: null,
+        loliCode: null,
+        analysisResult: null,
         isLoading: false,
         error: error as AppError,
         progress: 0,
@@ -62,9 +66,10 @@ export const useHarAnalysis = (): [HarAnalysisState, (file: File) => void] => {
       });
     });
 
-    harProcessor.on('onComplete', (har) => {
+    harProcessor.on('onComplete', (result) => {
       setAnalysisState({
-        har,
+        loliCode: result.loliCode,
+        analysisResult: result,
         isLoading: false,
         error: null,
         progress: 100,

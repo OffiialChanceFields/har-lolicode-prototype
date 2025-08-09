@@ -2,7 +2,6 @@ import { HarEntry, OB2BlockDefinition, OB2ConfigurationResult } from '../service
 import { OB2SyntaxValidator } from './OB2SyntaxValidator';
 import { BlockOptimizer } from './BlockOptimizer';
 import { VariableLifecycleManager } from './VariableLifecycleManager';
-import { ErrorHandlingFramework } from '../error-handling/ErrorHandlingFramework';
 import { FlowContextResult } from '../flow-analysis/types';
 
 interface CatchBlock {
@@ -14,13 +13,11 @@ export class OB2SyntaxComplianceEngine {
   private readonly syntaxValidator: OB2SyntaxValidator;
   private readonly blockOptimizer: BlockOptimizer;
   private readonly variableManager: VariableLifecycleManager;
-  private readonly errorHandlingFramework: ErrorHandlingFramework;
   
   constructor() {
     this.syntaxValidator = new OB2SyntaxValidator();
     this.blockOptimizer = new BlockOptimizer();
     this.variableManager = new VariableLifecycleManager();
-    this.errorHandlingFramework = new ErrorHandlingFramework();
   }
 
   generateCompliantLoliCode(
@@ -44,17 +41,18 @@ export class OB2SyntaxComplianceEngine {
     const variableMapping = this.variableManager.createVariableLifecycleMap(optimizedBlocks);
     
     // Add error handling
-    const enhancedBlocks = this.errorHandlingFramework.enhanceWithErrorHandling(
-      optimizedBlocks,
-      analysisResult.matchedPatterns
-    );
+    // const enhancedBlocks = this.errorHandlingFramework.enhanceWithErrorHandling(
+    //   optimizedBlocks,
+    //   analysisResult.matchedPatterns
+    // );
     
-    return this.synthesizeOB2Configuration(enhancedBlocks, variableMapping);
+    return this.synthesizeOB2Configuration(optimizedBlocks, variableMapping, analysisResult);
   }
   
   private synthesizeOB2Configuration(
     blocks: OB2BlockDefinition[], 
-    variableMapping: Map<string, string>
+    variableMapping: Map<string, string>,
+    analysisResult: FlowContextResult
   ): OB2ConfigurationResult {
     const loliCode: string[] = [];
     
@@ -111,7 +109,9 @@ export class OB2SyntaxComplianceEngine {
     return {
       loliCode: loliCode.join('\n'),
       blocks,
-      variables: variableMapping
+      variables: variableMapping,
+      metrics: analysisResult.metrics,
+      warnings: analysisResult.warnings
     };
   }
   

@@ -1,21 +1,37 @@
 // src/flow-analysis/types.ts
-import { HarEntry } from '../services/types';
+import { HarEntry } from '../types';
+import { EndpointScores } from '../services/EndpointScoringService';
+import { DetectedToken } from '../services/TokenDetector';
+import { PatternMatch } from './BehavioralPatternMatcher';
 
+/**
+ * Extends a standard HAR entry with its calculated scores.
+ */
+export interface ScoredHarEntry extends HarEntry {
+  scores: EndpointScores;
+}
+
+/**
+ * A comprehensive container for the results of the entire analysis pipeline.
+ * This object is the primary output of the AsyncHarProcessor and the input
+ * to the OB2SyntaxComplianceEngine.
+ */
 export interface FlowContextResult {
-  temporalMap: Map<string, number>;
-  dependencyChains: Array<{
-    start: number;
-    end: number;
-    strength: number;
-  }>;
-  matchedPatterns: Array<{
-    patternId: string;
-    confidence: number;
-    steps: HarEntry[];
-  }>;
-  criticalPath: HarEntry[];
-  redundantRequests: HarEntry[];
-  flowCompleteness: number;
+  allRequests: HarEntry[];
+  scoredRequests: ScoredHarEntry[];
+  criticalPath: ScoredHarEntry[];
+  redundantRequests: ScoredHarEntry[];
+
+  detectedTokens: DetectedToken[];
+  matchedPatterns: PatternMatch[];
+
+  metrics: {
+    totalRequests: number;
+    criticalRequests: number;
+    processingTime: number; // in milliseconds
+  };
+
+  warnings: string[];
 }
 
 export interface StateTransition {

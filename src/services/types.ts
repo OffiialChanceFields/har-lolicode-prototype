@@ -127,6 +127,8 @@ export interface OB2ConfigurationResult {
   loliCode: string;
   blocks: OB2BlockDefinition[];
   variables: Map<string, string>;
+  metrics: ProcessingMetrics;
+  warnings: string[];
 }
 
 // Analysis Result Types

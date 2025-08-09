@@ -10,7 +10,6 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "postinstall": "npm audit",
     "tsc": "tsc"
   },
   "dependencies": {

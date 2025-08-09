@@ -121,8 +121,11 @@ export class BehavioralPatternMatcher {
   }
 
   private entryMatchesPattern(entry: HarEntry, pattern: PatternStep): boolean {
-    if (pattern.urlPattern && !pattern.urlPattern.test(entry.request.url)) {
-      return false;
+    if (pattern.urlPattern) {
+        const patterns = Array.isArray(pattern.urlPattern) ? pattern.urlPattern : [pattern.urlPattern];
+        if (!patterns.some(p => p.test(entry.request.url))) {
+            return false;
+        }
     }
 
     if (

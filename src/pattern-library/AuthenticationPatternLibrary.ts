@@ -25,7 +25,15 @@ export enum AuthenticationPatternId {
   MFA_TOTP = 'mfa_totp',
   MFA_PUSH = 'mfa_push',
   MFA_WEBAUTHN = 'mfa_webauthn',
-  SESSION_ELEVATION = 'session_elevation'
+  SESSION_ELEVATION = 'session_elevation',
+  MFA_SEQUENCE = 'mfa_sequence'
+}
+
+export interface CompositeAuthenticationPattern {
+  id: string;
+  name: string;
+  sequence: AuthenticationPatternId[];
+  confidence: number;
 }
 
 // Common patterns for authentication endpoints
@@ -68,10 +76,13 @@ interface RequestPattern {
 
 export class AuthenticationPatternLibrary {
   private readonly patterns: Map<AuthenticationPatternId, AuthenticationPattern>;
-  
+  private readonly compositePatterns: CompositeAuthenticationPattern[];
+
   constructor() {
     this.patterns = new Map();
+    this.compositePatterns = [];
     this.initializePatternDatabase(); // Initialize with flexible patterns
+    this.initializeCompositePatterns();
   }
   
   private initializePatternDatabase(): void {
@@ -463,10 +474,85 @@ export class AuthenticationPatternLibrary {
         { name: 'totp_code', pattern: /name="code" value="([^"]+)"/, location: 'response' }
       ]
     });
+
+    // Session Elevation
+    this.patterns.set(AuthenticationPatternId.SESSION_ELEVATION, {
+      id: AuthenticationPatternId.SESSION_ELEVATION,
+      name: 'Session Elevation (Step-up Authentication)',
+      confidence: 0.9,
+      pattern: [
+        {
+          // Step 1: Access Denied
+          statusPattern: [401, 403, 302, 307],
+          // A generic pattern for a sensitive resource, could be improved with heuristics
+          urlPattern: [/.*/]
+        },
+        {
+          // Step 2: Re-authentication (placeholder, handled by composite logic)
+          // This step is intentionally left loose, as it will be filled by another auth pattern.
+        },
+        {
+          // Step 3: Access Granted
+          statusPattern: [200, 201, 204],
+          urlPattern: [/.*/] // Should match the URL of the first request
+        }
+      ],
+      extract: (matches) => ({
+        sensitiveResource: matches[0]?.request.url,
+        reauthenticationFlow: matches.slice(1, -1), // The intermediate steps
+        successfulAccess: matches[matches.length - 1]?.request.url
+      })
+    });
+
+    // MFA WebAuthn Authentication
+    this.patterns.set(AuthenticationPatternId.MFA_WEBAUTHN, {
+      id: AuthenticationPatternId.MFA_WEBAUTHN,
+      name: 'MFA (WebAuthn/FIDO2)',
+      confidence: 0.85,
+      pattern: [
+        {
+          // Step 1: Get Challenge
+          urlPattern: [
+            /\/webauthn\/challenge/,
+            /\/fido2\/challenge/,
+            /\/login\/start/
+          ],
+          methodPattern: ['GET', 'POST'],
+          statusPattern: SUCCESS_STATUS_CODES
+        },
+        {
+          // Step 2: Verify Assertion
+          urlPattern: [
+            /\/webauthn\/verify/,
+            /\/fido2\/verify/,
+            /\/login\/finish/
+          ],
+          methodPattern: ['POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          bodyPattern: /"response":\s*\{.*"clientDataJSON":/
+        }
+      ],
+      extract: (matches) => ({
+        challengeEndpoint: matches[0]?.request.url,
+        verificationEndpoint: matches[1]?.request.url,
+        webauthnCredential: this.extractWebAuthnCredential(matches[1])
+      }),
+      tokenPatterns: [
+        {
+          name: 'challenge',
+          pattern: /"challenge":"([^"]+)"/,
+          location: 'response'
+        }
+      ]
+    });
   }
   
   getAllPatterns(): Map<AuthenticationPatternId, AuthenticationPattern> {
     return this.patterns;
+  }
+
+  getCompositePatterns(): CompositeAuthenticationPattern[] {
+    return this.compositePatterns;
   }
   
   getPattern(id: AuthenticationPatternId): AuthenticationPattern | undefined {
@@ -576,13 +662,58 @@ export class AuthenticationPatternLibrary {
     };
   }
   private extractSessionId(entry: HarEntry): string | null {
-    const cookieHeader = entry.request.headers.find(h => 
-      h.name.toLowerCase() === 'cookie'
+    const cookieHeader = entry.request.headers.find(
+      (h) => h.name.toLowerCase() === 'cookie'
     );
-    
+
     if (!cookieHeader) return null;
-    
+
     const sessionIdMatch = cookieHeader.value.match(/sessionid=([^;]+)/);
     return sessionIdMatch ? sessionIdMatch[1] : null;
+  }
+
+  private extractWebAuthnCredential(
+    entry: HarEntry
+  ): Record<string, any> | null {
+    if (!entry.request.postData?.text) return null;
+
+    try {
+      const data = JSON.parse(entry.request.postData.text);
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private initializeCompositePatterns(): void {
+    this.compositePatterns.push(
+      {
+        id: 'mfa_sequence_totp',
+        name: 'MFA Sequence (TOTP)',
+        sequence: [
+          AuthenticationPatternId.FORM_AUTH_CSRF,
+          AuthenticationPatternId.MFA_TOTP
+        ],
+        confidence: 0.95
+      },
+      {
+        id: 'mfa_sequence_sms',
+        name: 'MFA Sequence (SMS)',
+        sequence: [
+          AuthenticationPatternId.FORM_AUTH_CSRF,
+          AuthenticationPatternId.MFA_SMS
+        ],
+        confidence: 0.95
+      },
+      {
+        id: 'mfa_sequence_webauthn',
+        name: 'MFA Sequence (WebAuthn)',
+        sequence: [
+          AuthenticationPatternId.FORM_AUTH_CSRF,
+          AuthenticationPatternId.MFA_WEBAUTHN
+        ],
+        confidence: 0.98
+      }
+    );
   }
 }

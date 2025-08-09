@@ -551,8 +551,11 @@ export class AuthenticationPatternLibrary {
           urlPattern: [/.*/]
         },
         {
-          // Step 2: Re-authentication (placeholder, handled by composite logic)
-          // This step is intentionally left loose, as it will be filled by another auth pattern.
+          // Step 2: Re-authentication (e.g., password re-entry)
+          urlPattern: AUTH_ENDPOINT_PATTERNS,
+          methodPattern: ['POST'],
+          statusPattern: SUCCESS_STATUS_CODES,
+          timing: FLEXIBLE_TIMING
         },
         {
           // Step 3: Access Granted

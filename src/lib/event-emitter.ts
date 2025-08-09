@@ -1,7 +1,12 @@
 // src/lib/event-emitter.ts
 
-export class EventEmitter<Events extends Record<string, (...args: any[]) => void> = Record<string, (...args: any[]) => void>> {
-  private events: { [K in keyof Events]?: Events[K][] } = {} as any;
+export class EventEmitter<
+  Events extends Record<string, (...args: never[]) => void> = Record<
+    string,
+    (...args: never[]) => void
+  >
+> {
+  private events: { [K in keyof Events]?: Events[K][] } = {};
 
   on<K extends keyof Events>(eventName: K, listener: Events[K]): void {
     if (!this.events[eventName]) {
@@ -10,7 +15,10 @@ export class EventEmitter<Events extends Record<string, (...args: any[]) => void
     this.events[eventName]!.push(listener);
   }
 
-  emit<K extends keyof Events>(eventName: K, ...args: Parameters<Events[K]>): void {
+  emit<K extends keyof Events>(
+    eventName: K,
+    ...args: Parameters<Events[K]>
+  ): void {
     const listeners = this.events[eventName];
     if (listeners) {
       listeners.forEach((listener) => listener(...args));
